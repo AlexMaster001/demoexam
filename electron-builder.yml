@@ -1,0 +1,31 @@
+# electron-builder.yml
+appId: com.sladkiyray.cakes
+productName: Кондитерская «Сладкий рай»
+directories:
+  output: dist
+
+files:
+  - out/**
+
+win:
+  target:
+    - nsis
+  executableName: electron-demo-2025
+  artifactName: ${productName}-${arch}.${ext}
+  verifyUpdateCodeSignature: false
+  signAndEditExecutable: false
+
+nsis:
+  oneClick: true
+  createDesktopShortcut: always
+  shortcutName: ${productName}
+
+# 🔥 Полностью отключаем macOS и Linux
+mac:
+  target: null
+linux:
+  target: null
+
+# ⛔ Отключаем публикацию и пересборку
+publish: null
+npmRebuild: false
