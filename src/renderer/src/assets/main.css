@@ -5,7 +5,7 @@
 }
 
 body {
-  font-family: Arial, sans-serif; /* ✅ Обязательно! По заданию */
+  font-family: Arial, sans-serif;
   background-color: #FFFFFF;
   color: #333;
   line-height: 1.6;
@@ -65,7 +65,7 @@ h1 {
   align-items: center;
   margin-bottom: 20px;
   padding: 0 10px;
-  background-color: #FC34C8; /* дополнительный фон */
+  background-color: #6A5ACD; /* ✅ Дополнительный фон из задания */
   border-radius: 8px;
 }
 
@@ -80,8 +80,8 @@ h1 {
 }
 
 .btn-add, .btn-orders {
-  background: #31EBFF; /* акцент */
-  color: black;
+  background: #4B0082; /* ✅ Акцент из задания */
+  color: white;
   border: none;
   padding: 8px 12px;
   border-radius: 5px;
@@ -106,7 +106,7 @@ h1 {
   border: 1px solid #ddd;
   border-radius: 5px;
   font-size: 14px;
-  font-family: 'Times New Roman', serif;
+  font-family: Arial, sans-serif; /* ✅ Только Arial */
 }
 
 /* === Контейнер товаров === */
@@ -168,12 +168,13 @@ h1 {
   color: black;
 }
 
+/* === Стили для условного форматирования === */
 .out-of-stock {
-  background-color: #add8e6 !important; /* голубой фон при остатке = 0 */
+  background-color: #ccc !important; /* ✅ Серый при остатке = 0 */
 }
 
 .high-discount {
-  background-color: #2E8B57 !important; /* зелёный фон при скидке > 15% */
+  background-color: #483D8B !important; /* ✅ Тёмно-синий при скидке > 15% */
   color: white;
 }
 
