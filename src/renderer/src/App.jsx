@@ -16,7 +16,7 @@ function App() {
 
   return (
     <>
-      <img className="logo" src="/assets/icon.JPG" alt="Логотип ВелосипедДрайв" />
+      <img className="logo" src="src/assets/icon.jpg" alt="Логотип ВелосипедДрайв" />
       
       {user.name ? <h1>{`${user.name} | Роль: ${user.role}`}</h1> : <h1>Гость</h1>}
       
