@@ -6,13 +6,13 @@ function LoginForm({ setUser, showNotification }) {
 
   async function submitHandler(e) {
     e.preventDefault();
-    const user = {
+    const userData = {
       login: e.target.login.value,
       password: e.target.password.value,
     };
     try {
-      const { role, fullname } = await window.api.authorizeUser(user);
-      setUser({ role, name: fullname });
+      const result = await window.api.authorizeUser(userData);
+      setUser(result);
       navigate('/main');
     } catch (err) {
       showNotification('Ошибка авторизации', 'error');
@@ -21,8 +21,8 @@ function LoginForm({ setUser, showNotification }) {
 
   return (
     <>
-      <img className="logo" src="/assets/icon.JPG" alt="иконка" />
-      <h1>Кондитерская «Сладкий рай»</h1>
+      <img className="logo" src="/assets/icon.JPG" alt="Логотип" />
+      <h1>ВелосипедДрайв</h1>
       <form onSubmit={submitHandler}>
         <label htmlFor="login">Логин:</label>
         <input id="login" type="text" required />
@@ -33,7 +33,7 @@ function LoginForm({ setUser, showNotification }) {
       <button onClick={() => {
         setUser({ role: 'гость', name: null });
         navigate('/main');
-      }}>Просмотреть каталог (режим гостя)</button>
+      }}>Просмотреть товары (режим гостя)</button>
     </>
   );
 }

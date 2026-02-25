@@ -1,53 +1,39 @@
 // src/components/GoodsCard.jsx
-import { memo } from 'react';
+function GoodsCard({ good }) {
+  const finalPrice = Math.round(good.price * (1 - good.discount / 100));
 
-const GoodsCard = ({ good }) => {
-  const discount = parseFloat(good.discount) || 0;
-  const price = parseFloat(good.price) || 0;
-  const discountPrice = discount > 0 ? price * (1 - discount / 100) : null;
-
-  const photoSrc = `src/assets/${good.image_path || 'picture.png'}`;
-
-  const cardClass = [
-    'goodsCard',
-    good.quantity === 0 ? 'out-of-stock' : '',
-    discount > 15 ? 'high-discount' : ''
-  ].filter(Boolean).join(' ');
+  // Фон строки
+  const bgColor = good.quantity <= 0
+    ? '#ccc'
+    : good.discount > 15
+      ? '#483D8B'  // цвет по заданию!
+      : 'white';
 
   return (
-    <div className={cardClass}>
+    <div className="card-wrapper" style={{ backgroundColor: bgColor }}>
       <div className="goodsPhoto">
         <img
-          src={photoSrc}
+          src={`src/assets/${good.image_path || 'picture.png'}`}
           alt={good.name}
-          onError={(e) => { e.target.src = 'src/assets/picture.png'; }}
+          onError={(e) => e.target.src = 'src/assets/picture.png'}
         />
       </div>
-      <div className="goodsInfo">
-        <div className="goodsHeading">{`${good.category} | ${good.type}`}</div>
-        <p><strong>Артикул:</strong> {good.article}</p>
-        <p><strong>Название:</strong> {good.name}</p>
-        <p><strong>Описание:</strong> {good.description || '—'}</p>
-        <p><strong>Поставщик:</strong> {good.supplier}</p>
+      <div className="goodsCard">
+        <h3>{good.name}</h3>
+        <p><strong>Категория:</strong> {good.category}</p>
         <p><strong>Производитель:</strong> {good.manufacturer}</p>
-        <p><strong>Ед. изм.:</strong> {good.measure}</p>
-        <div className="price-block">
-          {discountPrice ? (
-            <>
-              <span className="old-price">₽{price.toFixed(2)}</span>
-              <span className="current-price">₽{discountPrice.toFixed(2)}</span>
-            </>
-          ) : (
-            <span className="current-price">₽{price.toFixed(2)}</span>
-          )}
-        </div>
+        <p><strong>Поставщик:</strong> {good.supplier}</p>
+        <p><strong>Описание:</strong> {good.description}</p>
+        <p><strong>Единица:</strong> {good.unit}</p>
         <p><strong>На складе:</strong> {good.quantity} шт.</p>
-      </div>
-      <div className="goodsDiscount">
-        {discount > 0 ? <h3>{Math.round(discount)}%</h3> : <h3>—</h3>}
+        
+        <div className="price-block">
+          <span className="old-price">{good.price} ₽</span>
+          <span className="current-price">{finalPrice} ₽</span>
+        </div>
       </div>
     </div>
   );
-};
+}
 
-export default memo(GoodsCard);
+export default GoodsCard;

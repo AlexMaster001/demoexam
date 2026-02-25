@@ -4,7 +4,6 @@ import connectDB from './db.js';
 
 let globalDbClient;
 
-// Функция создания окна
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1000,
@@ -22,7 +21,6 @@ function createWindow() {
     mainWindow.loadFile(`${__dirname}/../renderer/index.html`);
   }
 
-  // Удалить или закомментировать перед сдачей
   mainWindow.webContents.openDevTools();
 }
 
@@ -31,191 +29,141 @@ app.whenReady().then(async () => {
     globalDbClient = await connectDB();
     console.log('✅ База данных подключена');
   } catch (err) {
-    console.error('❌ Ошибка подключения к БД:', err.message);
+    console.error('❌ Ошибка подключения:', err.message);
     app.quit();
     return;
   }
 
   createWindow();
 
-  // --- IPC Обработчики ---
-
-  // Авторизация пользователя
+  // Авторизация
   ipcMain.handle('authorizeUser', async (event, userData) => {
     try {
-      const result = await globalDbClient.query(
-        'SELECT role, fullname FROM users WHERE login = $1 AND password = $2',
+      const res = await globalDbClient.query(
+        'SELECT роль_сотрудника as role, фио as fullname FROM "Пользователи" WHERE логин = $1 AND пароль = $2',
         [userData.login, userData.password]
       );
-
-      if (result.rows.length > 0) {
-        console.log('✅ Авторизация успешна:', result.rows[0]);
-        return result.rows[0];
-      } else {
-        throw new Error('Неверный логин или пароль');
-      }
+      return res.rows[0];
     } catch (err) {
-      console.error('❌ Ошибка авторизации:', err.message);
-      throw err;
+      throw new Error('Неверный логин или пароль');
     }
   });
 
-  // Получить все торты (для каталога)
-  ipcMain.handle('getGoods', async () => {
-    try {
-      const result = await globalDbClient.query('SELECT * FROM cakes');
-      return result.rows;
-    } catch (err) {
-      console.error('❌ Ошибка загрузки тортов:', err.message);
-      throw err;
-    }
-  });
-
-  // Добавить торт
-  ipcMain.handle('addGood', async (event, good) => {
-    try {
-      await globalDbClient.query(`
-        INSERT INTO cakes (article, name, type, category, description, price, supplier, manufacturer, image_path, discount, quantity)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      `, [
-        good.article, good.name, good.type, good.category, good.description,
-        good.price, good.supplier, good.manufacturer, good.image_path,
-        good.discount, good.quantity
-      ]);
-      console.log('✅ Торт добавлен:', good.name);
-    } catch (err) {
-      console.error('❌ Ошибка при добавлении торта:', err.message);
-      throw err;
-    }
-  });
-
-  // Обновить торт
-  ipcMain.handle('updateGood', async (event, good) => {
-    try {
-      await globalDbClient.query(`
-        UPDATE cakes SET name=$1, type=$2, category=$3, description=$4, price=$5,
-                          supplier=$6, manufacturer=$7, image_path=$8, discount=$9, quantity=$10
-        WHERE id=$11
-      `, [
-        good.name, good.type, good.category, good.description, good.price,
-        good.supplier, good.manufacturer, good.image_path, good.discount, good.quantity, good.id
-      ]);
-      console.log('✅ Торт обновлён:', good.name);
-    } catch (err) {
-      console.error('❌ Ошибка при обновлении торта:', err.message);
-      throw err;
-    }
-  });
-
-  // Удалить торт (с проверкой по заказам)
-  ipcMain.handle('deleteGood', async (event, id) => {
-    try {
-      const orderCheck = await globalDbClient.query('SELECT * FROM orders WHERE cake_id = $1', [id]);
-      if (orderCheck.rows.length > 0) {
-        return { success: false, message: 'Торт нельзя удалить — он есть в заказе' };
-      }
-
-      await globalDbClient.query('DELETE FROM cakes WHERE id = $1', [id]);
-      return { success: true };
-    } catch (err) {
-      console.error('❌ Ошибка при удалении торта:', err.message);
-      return { success: false, message: 'Ошибка базы данных' };
-    }
-  });
-
-  // Получить заказы (с джойнами)
-  ipcMain.handle('getOrders', async () => {
-    try {
-      const result = await globalDbClient.query(`
-        SELECT o.*, u.fullname as client_name, c.name as cake_name, pp.address as pickup_address, s.name as status
-        FROM orders o
-        JOIN users u ON o.client_id = u.id
-        LEFT JOIN cakes c ON o.cake_id = c.id
-        LEFT JOIN pickup_points pp ON o.pickup_point_id = pp.id
-        JOIN statuses s ON o.status_id = s.id
-        ORDER BY o.created_at DESC
-      `);
-      return result.rows;
-    } catch (err) {
-      console.error('❌ Ошибка загрузки заказов:', err.message);
-      throw err;
-    }
-  });
-
-  // Получить клиентов (для формы заказа)
-  ipcMain.handle('getUsers', async () => {
-    const res = await globalDbClient.query('SELECT id, fullname FROM users WHERE role = $1', ['Авторизованный клиент']);
-    return res.rows;
-  });
-
-  // Получить только названия тортов (для выпадающего списка)
-  ipcMain.handle('getCakesForSelect', async () => {
-    const res = await globalDbClient.query('SELECT id, name FROM cakes');
-    return res.rows;
-  });
-
-  // Получить пункты выдачи
-  ipcMain.handle('getPickupPoints', async () => {
-    const res = await globalDbClient.query('SELECT id, address FROM pickup_points');
-    return res.rows;
-  });
-
-  // Получить статусы
-  ipcMain.handle('getStatuses', async () => {
-    const res = await globalDbClient.query('SELECT id, name FROM statuses');
-    return res.rows;
-  });
-
-  // Добавить заказ
-  ipcMain.handle('addOrder', async (event, data) => {
-  // Генерируем номер заказа: например, "ORD-2025-XXXX"
-  const result = await globalDbClient.query('SELECT MAX(id) FROM orders');
-  const nextId = (result.rows[0].max || 0) + 1;
-  const orderNumber = `ORD-${new Date().getFullYear()}-${String(nextId).padStart(4, '0')}`;
-
-  await globalDbClient.query(`
-    INSERT INTO orders (
-      order_number, client_id, cake_id, quantity, status_id, delivery_date, pickup_point_id, created_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-  `, [
-    orderNumber,
-    data.client_id,
-    data.cake_id,
-    data.quantity,
-    data.status_id,
-    data.delivery_date,
-    data.pickup_point_id
-  ]);
+  // Получить товары
+ipcMain.handle('getGoods', async () => {
+  const result = await globalDbClient.query(`
+    SELECT 
+      t.id,
+      t.артикул AS article,
+      t.наименование_товара AS name,
+      t.единица_измерения AS unit,
+      t.цена AS price,
+      pr.наименование_производителя AS manufacturer,
+      ps.наименование_поставщика AS supplier,
+      ct.наименование_категории AS category,
+      t.действующая_скидка AS discount,
+      t.кол_во_на_складе AS quantity,
+      t.описание_товара AS description,
+      t.путь_к_фото AS image_path
+    FROM "Товары" t
+    JOIN "Категории товаров" ct ON t.категория_товара_id = ct.id
+    JOIN "Производители" pr ON t.производитель_id = pr.id
+    JOIN "Поставщики" ps ON t.поставщик_id = ps.id
+  `);
+  return result.rows;
 });
 
-  // Обновить заказ
-  ipcMain.handle('updateOrder', async (event, data) => {
+  // CRUD товары
+  ipcMain.handle('addGood', async (event, good) => {
     await globalDbClient.query(`
-      UPDATE orders SET client_id=$1, cake_id=$2, quantity=$3, status_id=$4, delivery_date=$5, pickup_point_id=$6
-      WHERE id=$7
+      INSERT INTO "Товары" (
+        артикул, наименование_товара, единица_измерения, цена,
+        производитель_id, поставщик_id, категория_товара_id,
+        действующая_скидка, кол_во_на_складе, описание_товара, путь_к_фото
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     `, [
-      data.client_id,
-      data.cake_id,
-      data.quantity,
-      data.status_id,
-      data.delivery_date,
-      data.pickup_point_id,
-      data.id
+      good.article, good.name, good.unit, good.price,
+      good.manufacturerId, good.supplierId, good.categoryId,
+      good.discount, good.quantity, good.description, good.image_path
     ]);
   });
 
-  // Удалить заказ
+  ipcMain.handle('updateGood', async (event, good) => {
+    await globalDbClient.query(`
+      UPDATE "Товары" SET
+        наименование_товара=$1, единица_измерения=$2, цена=$3,
+        производитель_id=$4, поставщик_id=$5, категория_товара_id=$6,
+        действующая_скидка=$7, кол_во_на_складе=$8, описание_товара=$9, путь_к_фото=$10
+      WHERE id=$11
+    `, [
+      good.name, good.unit, good.price,
+      good.manufacturerId, good.supplierId, good.categoryId,
+      good.discount, good.quantity, good.description, good.image_path, good.id
+    ]);
+  });
+
+  ipcMain.handle('deleteGood', async (event, id) => {
+    try {
+      const check = await globalDbClient.query('SELECT * FROM "Заказы" WHERE артикул_заказа LIKE $1', [`%${id}%`]);
+      if (check.rows.length > 0) {
+        return { success: false, message: 'Товар есть в заказах' };
+      }
+      await globalDbClient.query('DELETE FROM "Товары" WHERE id = $1', [id]);
+      return { success: true };
+    } catch (err) {
+      return { success: false, message: 'Ошибка БД' };
+    }
+  });
+
+  // Заказы
+  ipcMain.handle('getOrders', async () => {
+    const res = await globalDbClient.query(`
+      SELECT o.*, u.фио as client_name, pp.адрес_пункта_выдачи as pickup_address
+      FROM "Заказы" o
+      JOIN "Пользователи" u ON o.клиент_id = u.id
+      JOIN "Пункты выдачи" pp ON o.пункт_выдачи_id = pp.id
+      ORDER BY o.дата_заказа DESC
+    `);
+    return res.rows;
+  });
+
+  ipcMain.handle('addOrder', async (event, data) => {
+    const result = await globalDbClient.query('SELECT MAX(id) FROM "Заказы"');
+    const nextId = (result.rows[0].max || 0) + 1;
+    const orderNumber = `ORD-${new Date().getFullYear()}-${String(nextId).padStart(4, '0')}`;
+
+    await globalDbClient.query(`
+      INSERT INTO "Заказы" (
+        номер_заказа, артикул_заказа, дата_заказа, дата_доставки,
+        пункт_выдачи_id, клиент_id, код_для_получения, статус_заказа
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `, [
+      orderNumber, data.items, data.dateCreated, data.deliveryDate,
+      data.pickupPointId, data.clientId, data.code, data.status
+    ]);
+  });
+
+  ipcMain.handle('updateOrder', async (event, data) => {
+    await globalDbClient.query(`
+      UPDATE "Заказы" SET
+        артикул_заказа=$1, дата_заказа=$2, дата_доставки=$3,
+        пункт_выдачи_id=$4, клиент_id=$5, код_для_получения=$6, статус_заказа=$7
+      WHERE id=$8
+    `, [
+      data.items, data.dateCreated, data.deliveryDate,
+      data.pickupPointId, data.clientId, data.code, data.status, data.id
+    ]);
+  });
+
   ipcMain.handle('deleteOrder', async (event, id) => {
-    await globalDbClient.query('DELETE FROM orders WHERE id = $1', [id]);
+    await globalDbClient.query('DELETE FROM "Заказы" WHERE id = $1', [id]);
   });
 });
 
-// Активация приложения (macOS)
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
-// Закрытие всех окон → выход из приложения
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });

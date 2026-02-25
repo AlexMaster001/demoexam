@@ -8,10 +8,12 @@ Electron + React + PostgreSQL
 ## ▶️ Перед запуском 
 ```bash
 npm install
-
+npm install react 
+npm install react-router-dom
+npm install react react-dom react-router-dom
 ## ▶️ Запуск в режиме разработки
 ```bash
-npm install
+
 npm run dev
 
 npm run build:win

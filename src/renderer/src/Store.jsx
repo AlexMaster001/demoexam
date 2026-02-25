@@ -8,12 +8,11 @@ function Store({ user, setUser, showNotification }) {
   const [goods, setGoods] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('asc');
-  const [filterSupplier, setFilterSupplier] = useState('all');
+  const [filterDiscount, setFilterDiscount] = useState('all');
   const [editModal, setEditModal] = useState(null);
 
-  // Загрузка товаров
   useEffect(() => {
-    const loadData = async () => {
+    const loadGoods = async () => {
       try {
         const result = await window.api.getGoods();
         const processed = result.map(g => ({
@@ -29,35 +28,40 @@ function Store({ user, setUser, showNotification }) {
     };
 
     if (user?.role && user.role !== 'не авторизован') {
-      loadData();
+      loadGoods();
     }
   }, [user, showNotification]);
 
-  const uniqueSuppliers = useMemo(() => {
-    return Array.from(new Set(goods.map(g => g.supplier).filter(Boolean)));
-  }, [goods]);
-
-  const filtered = useMemo(() => {
-    let result = goods.filter(g =>
-      g.article?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      g.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      g.supplier?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    if (filterSupplier !== 'all') {
-      result = result.filter(g => g.supplier === filterSupplier);
+  // Диапазоны фильтрации скидок
+  const filteredByDiscount = useMemo(() => {
+    let result = [...goods];
+    if (filterDiscount === '0-11.99') {
+      result = result.filter(g => g.discount >= 0 && g.discount < 12);
+    } else if (filterDiscount === '12-18.99') {
+      result = result.filter(g => g.discount >= 12 && g.discount < 19);
+    } else if (filterDiscount === '19+') {
+      result = result.filter(g => g.discount >= 19);
     }
+    return result;
+  }, [goods, filterDiscount]);
 
+  const sorted = useMemo(() => {
     return sortOrder === 'asc'
-      ? result.toSorted((a, b) => a.quantity - b.quantity)
-      : result.toSorted((a, b) => b.quantity - a.quantity);
-  }, [goods, searchTerm, filterSupplier, sortOrder]);
+      ? filteredByDiscount.toSorted((a, b) => a.price - b.price)
+      : filteredByDiscount.toSorted((a, b) => b.price - a.price);
+  }, [filteredByDiscount, sortOrder]);
 
-  // --- CRUD ---
+  const searched = useMemo(() => {
+    return sorted.filter(g =>
+      Object.values(g).some(val =>
+        String(val).toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    );
+  }, [sorted, searchTerm]);
 
   const handleAdd = () => {
     if (editModal !== null) {
-      showNotification('Нельзя открыть две формы одновременно', 'warning');
+      showNotification('Форма уже открыта', 'warning');
       return;
     }
     setEditModal({});
@@ -65,29 +69,23 @@ function Store({ user, setUser, showNotification }) {
 
   const handleEdit = (good) => {
     if (editModal !== null) {
-      showNotification('Нельзя открыть две формы одновременно', 'warning');
+      showNotification('Форма уже открыта', 'warning');
       return;
     }
     setEditModal(good);
   };
 
   const handleDelete = async (good) => {
-    if (!window.confirm(`Удалить торт "${good.name}"?`)) return;
+    if (!window.confirm(`Удалить "${good.name}"?`)) return;
 
     try {
       const result = await window.api.deleteGood(good.id);
       if (result.success) {
         const updated = await window.api.getGoods();
-        const processed = updated.map(g => ({
-          ...g,
-          price: parseFloat(g.price) || 0,
-          quantity: parseInt(g.quantity) || 0,
-          discount: parseFloat(g.discount) || 0
-        }));
-        setGoods(processed);
-        showNotification('Торт удалён', 'success');
+        setGoods(updated);
+        showNotification('Товар удалён', 'success');
       } else {
-        showNotification(result.message || 'Нельзя удалить торт', 'error');
+        showNotification(result.message, 'error');
       }
     } catch (err) {
       showNotification('Ошибка удаления', 'error');
@@ -98,63 +96,52 @@ function Store({ user, setUser, showNotification }) {
     try {
       if (formData.id) {
         await window.api.updateGood(formData);
-        showNotification('Торт обновлён', 'success');
+        showNotification('Товар обновлён', 'success');
       } else {
         await window.api.addGood(formData);
-        showNotification('Торт добавлен', 'success');
+        showNotification('Товар добавлен', 'success');
       }
       const updated = await window.api.getGoods();
-      const processed = updated.map(g => ({
-        ...g,
-        price: parseFloat(g.price) || 0,
-        quantity: parseInt(g.quantity) || 0,
-        discount: parseFloat(g.discount) || 0
-      }));
-      setGoods(processed);
+      setGoods(updated);
       setEditModal(null);
     } catch (err) {
-      showNotification(err.message || 'Ошибка сохранения', 'error');
+      showNotification('Ошибка сохранения', 'error');
     }
   };
 
-  const closeModal = () => setEditModal(null);
-
   return (
     <Dashboard user={user} setUser={setUser}>
-      {/* Кнопка "Добавить" только для админа */}
       {user.role === 'Администратор' && (
         <div style={{ padding: '0 10px 10px' }}>
-          <button onClick={handleAdd} className="btn-add">➕ Добавить торт</button>
+          <button onClick={handleAdd} className="btn-add">➕ Добавить велосипед</button>
         </div>
       )}
 
-      {/* Поиск и фильтры */}
       <div className="filters">
         <input
           type="text"
-          placeholder="Поиск по артикулу, названию, поставщику..."
+          placeholder="Поиск..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="search-input"
         />
-        <select value={filterSupplier} onChange={(e) => setFilterSupplier(e.target.value)}>
-          <option value="all">Все поставщики</option>
-          {uniqueSuppliers.map(name => (
-            <option key={name} value={name}>{name}</option>
-          ))}
+        <select value={filterDiscount} onChange={(e) => setFilterDiscount(e.target.value)}>
+          <option value="all">Все диапазоны</option>
+          <option value="0-11.99">0–11,99%</option>
+          <option value="12-18.99">12–18,99%</option>
+          <option value="19+">19% и более</option>
         </select>
         <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
-          <option value="asc">Кол-во ↑</option>
-          <option value="desc">Кол-во ↓</option>
+          <option value="asc">Цена ↑</option>
+          <option value="desc">Цена ↓</option>
         </select>
       </div>
 
-      {/* Список тортов */}
       <div className="goodsContainer">
-        {filtered.length === 0 ? (
-          <p>Торты не найдены</p>
+        {searched.length === 0 ? (
+          <p>Велосипеды не найдены</p>
         ) : (
-          filtered.map(g => (
+          searched.map(g => (
             <div key={g.id} className="card-wrapper">
               <GoodsCard good={g} />
               {user.role === 'Администратор' && (
@@ -168,8 +155,9 @@ function Store({ user, setUser, showNotification }) {
         )}
       </div>
 
-      {/* Форма добавления/редактирования */}
-      {editModal && <EditGoodForm good={editModal} onSave={handleSave} onCancel={closeModal} />}
+      {editModal && (
+        <EditGoodForm good={editModal} onSave={handleSave} onCancel={() => setEditModal(null)} />
+      )}
     </Dashboard>
   );
 }
